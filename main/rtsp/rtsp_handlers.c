@@ -1339,6 +1339,15 @@ static void handle_setup(int socket, rtsp_conn_t *conn,
   }
 
   if (is_bplist) {
+    // NTP-timed session: the timing client was started by the session SETUP.
+    // This is a no-op while it runs and restarts it if the cleanup of a
+    // connection this one replaced has stopped it.  PTP sessions have no
+    // client timing port and skip this.
+    if (!start_ntp_timing_or_fail(socket, conn, req)) {
+      audio_receiver_stop();
+      return;
+    }
+
     uint8_t plist_body[256];
     size_t plist_len = bplist_build_stream_setup(
         plist_body, sizeof(plist_body), stream_type, response_data_port,
