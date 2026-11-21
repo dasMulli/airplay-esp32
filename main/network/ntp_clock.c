@@ -322,6 +322,10 @@ bool ntp_clock_is_locked(void) {
   return ntp.locked;
 }
 
+bool ntp_clock_is_running(void) {
+  return ntp.running;
+}
+
 int64_t ntp_clock_get_offset_ns(void) {
   return ntp.offset_ns;
 }

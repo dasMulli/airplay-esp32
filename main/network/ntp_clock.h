@@ -32,6 +32,13 @@ void ntp_clock_stop(void);
 bool ntp_clock_is_locked(void);
 
 /**
+ * Check if the NTP timing client is running, i.e. the current session
+ * negotiated NTP timing.
+ * @return true between ntp_clock_start_client() and ntp_clock_stop()
+ */
+bool ntp_clock_is_running(void);
+
+/**
  * Get current offset from local clock to remote time in nanoseconds.
  * remote_time = local_time + offset
  */

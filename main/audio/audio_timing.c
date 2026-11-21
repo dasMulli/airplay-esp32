@@ -128,7 +128,7 @@ static void update_timing_targets(audio_timing_t *timing,
 typedef enum {
   SYNC_MODE_NONE, // No clock sync, use local anchor time
   SYNC_MODE_PTP,  // AirPlay 2 PTP sync
-  SYNC_MODE_NTP,  // AirPlay 1 NTP sync
+  SYNC_MODE_NTP,  // NTP sync (AirPlay 1, or AirPlay 2 with NTP timing)
 } sync_mode_t;
 
 // Compute how early (positive) or late (negative) a frame is in microseconds
@@ -174,7 +174,7 @@ static bool compute_early_us(const audio_timing_t *timing,
                 ptp_clock_get_offset_ns() + frame_offset_ns + latency_ns;
     break;
   case SYNC_MODE_NTP:
-    // AirPlay 1: use network time with NTP offset for multi-room sync
+    // NTP timing: use network time with NTP offset for multi-room sync
     // offset = remote_time - local_time, so local = remote - offset
     target_ns = (int64_t)timing->anchor_network_time_ns -
                 ntp_clock_get_offset_ns() + frame_offset_ns + latency_ns;
@@ -441,12 +441,17 @@ size_t audio_timing_read(audio_timing_t *timing, audio_buffer_t *buffer,
     }
   }
 
-  // Determine sync mode: PTP (AirPlay 2), NTP (AirPlay 1), or local fallback
+  // Determine sync mode.  A running NTP timing client means the session
+  // negotiated NTP timing (AirPlay 1, or AirPlay 2 with timingProtocol NTP):
+  // its anchors are in the sender's NTP clock, so never schedule them from
+  // PTP, which could only be an unrelated master on the LAN.
   sync_mode_t sync_mode = SYNC_MODE_NONE;
-  if (ptp_clock_is_locked()) {
+  if (ntp_clock_is_running()) {
+    if (ntp_clock_is_locked()) {
+      sync_mode = SYNC_MODE_NTP;
+    }
+  } else if (ptp_clock_is_locked()) {
     sync_mode = SYNC_MODE_PTP;
-  } else if (ntp_clock_is_locked()) {
-    sync_mode = SYNC_MODE_NTP;
   }
 
   // Keep the playout task bounded.  Stale frames are still drained in batches,
